@@ -3,7 +3,7 @@
  * Plugin Name: WPCY Template Connector
  * Plugin URI: https://wpcy.net
  * Description: Connects Elementor template library to templates.wpcy.net — replaces my.elementor.com API calls with local template repository.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: WPCY
  * Requires Plugins: elementor
  * Text Domain: wpcy-template-connector
@@ -12,6 +12,8 @@
 if (!defined('ABSPATH')) {
     exit;
 }
+
+define('WPCY_TEMPLATE_CONNECTOR_VERSION', '1.0.2');
 
 class WPCY_Template_Connector {
 
@@ -23,6 +25,8 @@ class WPCY_Template_Connector {
         add_filter('pre_http_request', [$this, 'intercept_http'], 10, 3);
         add_filter('elementor/connect/additional-connect-info', '__return_empty_array', 999);
         add_filter('get_user_option_elementor_connect_common_data', [$this, 'fake_connect_state']);
+        add_action('admin_menu', [$this, 'register_settings_page'], 99);
+        add_action('admin_post_wpcy_template_connector_clear_cache', [$this, 'clear_elementor_library_cache']);
         add_action('admin_notices', [$this, 'status_notice']);
     }
 
@@ -244,6 +248,210 @@ class WPCY_Template_Connector {
         }
 
         return $this->json_response($resource);
+    }
+
+
+    // ─── Admin Settings Page ─────────────────────────────────────
+
+    public function register_settings_page(): void {
+        $parent_slug = class_exists('\\Elementor\\Modules\\EditorOne\\Classes\\Menu_Config')
+            ? \Elementor\Modules\EditorOne\Classes\Menu_Config::ELEMENTOR_HOME_MENU_SLUG
+            : 'elementor';
+
+        add_submenu_page(
+            $parent_slug,
+            __('WPCY Template Connector', 'wpcy-template-connector'),
+            __('WPCY Templates', 'wpcy-template-connector'),
+            'manage_options',
+            'wpcy-template-connector',
+            [$this, 'render_settings_page'],
+            90
+        );
+    }
+
+    public function render_settings_page(): void {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('You do not have permission to access this page.', 'wpcy-template-connector'));
+        }
+
+        $run_diagnostics = isset($_POST['wpcy_template_connector_diagnostics'])
+            && check_admin_referer('wpcy_template_connector_diagnostics');
+        $diagnostics = $run_diagnostics ? $this->run_diagnostics() : [];
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e('WPCY Template Connector', 'wpcy-template-connector'); ?></h1>
+            <p><?php esc_html_e('Elementor template library requests are routed to templates.wpcy.net.', 'wpcy-template-connector'); ?></p>
+            <?php if (isset($_GET['wpcy_cache_cleared'])): ?>
+                <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Elementor library cache cleared.', 'wpcy-template-connector'); ?></p></div>
+            <?php endif; ?>
+
+            <table class="widefat striped" style="max-width: 960px; margin-bottom: 18px;">
+                <tbody>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Plugin version', 'wpcy-template-connector'); ?></th>
+                        <td><?php echo esc_html(WPCY_TEMPLATE_CONNECTOR_VERSION); ?></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('API base', 'wpcy-template-connector'); ?></th>
+                        <td><code><?php echo esc_html($this->api_base); ?></code></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('HTTP interception', 'wpcy-template-connector'); ?></th>
+                        <td><?php esc_html_e('Enabled for my.elementor.com and Elementor Cloud Library endpoints.', 'wpcy-template-connector'); ?></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Elementor Connect mock', 'wpcy-template-connector'); ?></th>
+                        <td><?php esc_html_e('Enabled for template import requests.', 'wpcy-template-connector'); ?></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <form method="post" style="display:inline-block; margin-right:8px;">
+                <?php wp_nonce_field('wpcy_template_connector_diagnostics'); ?>
+                <button class="button button-primary" type="submit" name="wpcy_template_connector_diagnostics" value="1">
+                    <?php esc_html_e('Run diagnostics', 'wpcy-template-connector'); ?>
+                </button>
+            </form>
+
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;">
+                <?php wp_nonce_field('wpcy_template_connector_clear_cache'); ?>
+                <input type="hidden" name="action" value="wpcy_template_connector_clear_cache">
+                <button class="button" type="submit"><?php esc_html_e('Clear Elementor library cache', 'wpcy-template-connector'); ?></button>
+            </form>
+
+            <?php if ($run_diagnostics): ?>
+                <h2><?php esc_html_e('Diagnostics', 'wpcy-template-connector'); ?></h2>
+                <table class="widefat striped" style="max-width: 960px;">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e('Check', 'wpcy-template-connector'); ?></th>
+                            <th><?php esc_html_e('Status', 'wpcy-template-connector'); ?></th>
+                            <th><?php esc_html_e('Details', 'wpcy-template-connector'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($diagnostics as $row): ?>
+                            <tr>
+                                <td><code><?php echo esc_html($row['label']); ?></code></td>
+                                <td>
+                                    <?php if ($row['ok']): ?>
+                                        <span style="color:#008a20;font-weight:600;"><?php esc_html_e('OK', 'wpcy-template-connector'); ?></span>
+                                    <?php else: ?>
+                                        <span style="color:#b32d2e;font-weight:600;"><?php esc_html_e('Error', 'wpcy-template-connector'); ?></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo esc_html($row['details']); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    public function clear_elementor_library_cache(): void {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('You do not have permission to clear this cache.', 'wpcy-template-connector'));
+        }
+
+        check_admin_referer('wpcy_template_connector_clear_cache');
+        delete_transient('elementor_remote_templates_data_' . (defined('ELEMENTOR_VERSION') ? ELEMENTOR_VERSION : ''));
+        wp_safe_redirect(add_query_arg('wpcy_cache_cleared', '1', admin_url('admin.php?page=wpcy-template-connector')));
+        exit;
+    }
+
+    private function run_diagnostics(): array {
+        $rows = [];
+        $health = $this->diagnostic_get('/health');
+        $health_data = $health['data'];
+        $rows[] = [
+            'label' => 'GET /health',
+            'ok' => $health['ok'] && isset($health_data['templates']),
+            'details' => $health['ok']
+                ? sprintf(
+                    'visible=%s raw=%s invalid=%s',
+                    (string) ($health_data['templates'] ?? 'n/a'),
+                    (string) ($health_data['raw_templates'] ?? 'n/a'),
+                    (string) ($health_data['invalid_templates'] ?? 'n/a')
+                )
+                : $health['error'],
+        ];
+
+        $templates = $this->diagnostic_get('/api/connect/v1/library/templates');
+        $rows[] = [
+            'label' => 'GET /api/connect/v1/library/templates',
+            'ok' => $templates['ok'] && is_array($templates['data']) && $this->is_list_array($templates['data']),
+            'details' => $templates['ok']
+                ? sprintf('count=%d first_id=%s', count($templates['data']), (string) ($templates['data'][0]['id'] ?? 'n/a'))
+                : $templates['error'],
+        ];
+
+        $info = $this->diagnostic_get('/api/v1/templates/info/');
+        $info_data = $info['data'];
+        $types_data = is_array($info_data) ? ($info_data['types_data'] ?? []) : [];
+        $rows[] = [
+            'label' => 'GET /api/v1/templates/info/',
+            'ok' => $info['ok'] && isset($types_data['block']['categories']) && is_array($types_data['block']['categories']),
+            'details' => $info['ok']
+                ? sprintf(
+                    'templates=%d block=%d popup=%d lp=%d lb=%d',
+                    count($info_data['templates'] ?? []),
+                    count($types_data['block']['categories'] ?? []),
+                    count($types_data['popup']['categories'] ?? []),
+                    count($types_data['lp']['categories'] ?? []),
+                    count($types_data['lb']['categories'] ?? [])
+                )
+                : $info['error'],
+        ];
+
+        $content = $this->diagnostic_post('/api/connect/v1/library/get_template_content', ['id' => '11034']);
+        $content_data = $content['data'];
+        $rows[] = [
+            'label' => 'POST /api/connect/v1/library/get_template_content',
+            'ok' => $content['ok'] && isset($content_data['content']) && is_array($content_data['content']),
+            'details' => $content['ok']
+                ? sprintf('id=11034 content=%d first_el=%s', count($content_data['content'] ?? []), (string) ($content_data['content'][0]['elType'] ?? 'n/a'))
+                : $content['error'],
+        ];
+
+        return $rows;
+    }
+
+    private function diagnostic_get(string $path): array {
+        $response = wp_remote_get($this->api_base . $path, ['timeout' => $this->fetch_timeout]);
+        return $this->format_diagnostic_response($response);
+    }
+
+    private function diagnostic_post(string $path, array $body): array {
+        $response = wp_remote_post(
+            $this->api_base . $path,
+            [
+                'timeout' => $this->fetch_timeout,
+                'headers' => ['Content-Type' => 'application/json'],
+                'body' => wp_json_encode($body),
+            ]
+        );
+        return $this->format_diagnostic_response($response);
+    }
+
+    private function format_diagnostic_response($response): array {
+        if (is_wp_error($response)) {
+            return ['ok' => false, 'data' => null, 'error' => $response->get_error_message()];
+        }
+
+        $code = (int) wp_remote_retrieve_response_code($response);
+        $data = json_decode(wp_remote_retrieve_body($response), true);
+
+        if (200 !== $code) {
+            return ['ok' => false, 'data' => $data, 'error' => 'HTTP ' . $code];
+        }
+
+        if (null === $data && JSON_ERROR_NONE !== json_last_error()) {
+            return ['ok' => false, 'data' => null, 'error' => 'Invalid JSON: ' . json_last_error_msg()];
+        }
+
+        return ['ok' => true, 'data' => $data, 'error' => ''];
     }
 
     // ─── Format Transformers ──────────────────────────────────────

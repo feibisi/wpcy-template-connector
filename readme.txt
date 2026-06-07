@@ -4,7 +4,7 @@ Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
 Requires Plugins: elementor
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPL-2.0+
 
 Connects Elementor template library to templates.wpcy.net, replacing my.elementor.com API calls.
@@ -24,9 +24,12 @@ Intercepts three template API surfaces and forwards them to native-compatible WP
 2. Activate from Plugins screen
 3. Elementor template library now serves from templates.wpcy.net
 
-No configuration needed.
+Diagnostics and cache controls are available from Elementor → WPCY Templates.
 
 == Changelog ==
+
+= 1.0.2 =
+* Add Elementor submenu settings page with endpoint diagnostics and cache clearing.
 
 = 1.0.1 =
 * Use templates.wpcy.net native Elementor-compatible endpoints for template list, info, and content.

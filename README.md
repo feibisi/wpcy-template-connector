@@ -11,13 +11,17 @@ Connect Elementor's remote template library to `https://templates.wpcy.net`.
 
 ## Current behavior
 
-Version `1.0.1` prefers the native-compatible Worker endpoints:
+Version `1.0.2` prefers the native-compatible Worker endpoints:
 
 - `GET /api/connect/v1/library/templates` returns the Elementor remote template JSON array.
 - `GET /api/v1/templates/info/` returns `templates`, `categories`, `types_data`, and `config`.
 - `POST /api/connect/v1/library/get_template_content` returns `{content, page_settings}`.
 
 Legacy `/api/templates` and `/api/template/{id}` are still kept as fallback paths.
+
+## Settings page
+
+Open **Elementor → WPCY Templates** in wp-admin to view connector status, run endpoint diagnostics, and clear Elementor remote template cache.
 
 ## Install
 
