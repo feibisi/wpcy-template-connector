@@ -1,11 +1,16 @@
 <?php
 /**
  * Plugin Name: WPCY Template Connector
- * Plugin URI: https://wpcy.net
- * Description: Connects Elementor template library to templates.wpcy.net — replaces my.elementor.com API calls with local template repository.
- * Version: 1.0.3
- * Author: WPCY
+ * Plugin URI: https://wpcy.com
+ * Description: Connects Elementor's remote template library to templates.wpcy.net and routes template imports through the WPCY template repository.
+ * Version: 1.0.4
+ * Author: WPCY.COM
+ * Author URI: https://wpcy.com
+ * Requires at least: 6.0
+ * Requires PHP: 7.4
  * Requires Plugins: elementor
+ * License: GPL-2.0-or-later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: wpcy-template-connector
  * Update URI: https://updates.wenpai.net
  */
@@ -14,7 +19,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('WPCY_TEMPLATE_CONNECTOR_VERSION', '1.0.3');
+define('WPCY_TEMPLATE_CONNECTOR_VERSION', '1.0.4');
 
 if (is_admin()) {
     require_once __DIR__ . '/includes/class-wenpai-updater.php';

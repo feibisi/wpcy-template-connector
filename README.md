@@ -1,6 +1,26 @@
 # WPCY Template Connector
 
-Connect Elementor's remote template library to `https://templates.wpcy.net`.
+**Author:** WPCY.COM
+
+**Plugin URI:** <https://wpcy.com>
+
+**Template API:** <https://templates.wpcy.net>
+
+**Update API:** <https://updates.wenpai.net>
+
+Connect Elementor's remote template library to the WPCY template repository.
+
+## Plugin metadata
+
+- Plugin name: WPCY Template Connector
+- Author: WPCY.COM
+- Author URI: <https://wpcy.com>
+- Requires WordPress: 6.0+
+- Tested up to: 6.8
+- Requires PHP: 7.4+
+- Requires plugin: Elementor
+- License: GPL-2.0-or-later
+- Text domain: `wpcy-template-connector`
 
 ## What it intercepts
 
@@ -11,7 +31,7 @@ Connect Elementor's remote template library to `https://templates.wpcy.net`.
 
 ## Current behavior
 
-Version `1.0.3` prefers the native-compatible Worker endpoints:
+Version `1.0.4` prefers the native-compatible Worker endpoints:
 
 - `GET /api/connect/v1/library/templates` returns the Elementor remote template JSON array.
 - `GET /api/v1/templates/info/` returns `templates`, `categories`, `types_data`, and `config`.
@@ -41,6 +61,7 @@ Then activate **WPCY Template Connector** in WordPress.
 
 ```bash
 php -l wpcy-template-connector.php
+php -l includes/class-wenpai-updater.php
 ```
 
 In Elementor, open the Template Library and import a remote template.
