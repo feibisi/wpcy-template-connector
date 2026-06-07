@@ -11,7 +11,7 @@ Connect Elementor's remote template library to `https://templates.wpcy.net`.
 
 ## Current behavior
 
-Version `1.0.2` prefers the native-compatible Worker endpoints:
+Version `1.0.3` prefers the native-compatible Worker endpoints:
 
 - `GET /api/connect/v1/library/templates` returns the Elementor remote template JSON array.
 - `GET /api/v1/templates/info/` returns `templates`, `categories`, `types_data`, and `config`.
@@ -19,9 +19,13 @@ Version `1.0.2` prefers the native-compatible Worker endpoints:
 
 Legacy `/api/templates` and `/api/template/{id}` are still kept as fallback paths.
 
+## Updates
+
+The plugin declares `Update URI: https://updates.wenpai.net` and bundles WenPai updater support so WordPress can receive package updates from the WenPai/FeiCode update channel.
+
 ## Settings page
 
-Open **Elementor → WPCY Templates** in wp-admin to view connector status, run endpoint diagnostics, and clear Elementor remote template cache.
+Open **Elementor → Connector** in wp-admin to view connector status, run endpoint diagnostics, and clear Elementor remote template cache.
 
 ## Install
 

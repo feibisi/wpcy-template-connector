@@ -1,0 +1,268 @@
+name: Release Plugin
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  PLUGIN_SLUG: ${{ github.event.repository.name }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tools
+        shell: bash
+        run: |
+          php -v | head -1 || true
+          git --version
+          rsync --version | head -1 || true
+          zip --version | head -2 || true
+          jq --version
+          curl --version | head -1 || true
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Detect main plugin file
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAIN_FILE=$(grep -rl "Plugin Name:" *.php 2>/dev/null | head -1)
+          if [ -z "$MAIN_FILE" ]; then
+            echo "::error::No main plugin file found"
+            exit 1
+          fi
+          echo "main_file=$MAIN_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Validate version consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          MAIN_FILE="${{ steps.detect.outputs.main_file }}"
+          HEADER_VERSION=$(grep -i "Version:" "$MAIN_FILE" | grep -v "Requires" | grep -v "Tested" | head -1 | sed "s/.*Version:[[:space:]]*//" | sed "s/[[:space:]]*$//" | tr -d "\r")
+          if [ "$HEADER_VERSION" != "$VERSION" ]; then
+            echo "::error::Version mismatch: tag=$VERSION, header=$HEADER_VERSION"
+            exit 1
+          fi
+          if [ -f "readme.txt" ]; then
+            STABLE_TAG=$(grep -i "^Stable tag:" readme.txt | head -1 | sed "s/.*Stable tag:[[:space:]]*//" | sed "s/[[:space:]]*$//" | tr -d "\r")
+            if [ -n "$STABLE_TAG" ] && [ "$STABLE_TAG" != "$VERSION" ]; then
+              echo "::error::Stable tag mismatch: tag=$VERSION, readme=$STABLE_TAG"
+              exit 1
+            fi
+          fi
+          grep -qi "^ \* Update URI:[[:space:]]*https://updates.wenpai.net" "$MAIN_FILE" || {
+            echo "::error::Missing Update URI: https://updates.wenpai.net"
+            exit 1
+          }
+
+      - name: Generate Changelog
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v' | grep -v "^${TAG}$" | head -1 || true)
+          if [ -n "$PREV_TAG" ]; then
+            COMMITS=$(git log "${PREV_TAG}..${TAG}" --no-merges --pretty=format:"%s (%h)" 2>/dev/null || true)
+          else
+            COMMITS=$(git log --no-merges --pretty=format:"%s (%h)" 2>/dev/null || true)
+          fi
+          if [ -z "$COMMITS" ]; then
+            : > /tmp/changelog.md
+            exit 0
+          fi
+          printf '%s\n' "$COMMITS" | sed 's/^/- /' | head -20 > /tmp/changelog.md
+
+      - name: PHP Lint
+        shell: bash
+        run: |
+          set -euo pipefail
+          ERRORS=0
+          while IFS= read -r file; do
+            if ! php -l "$file" > /dev/null 2>&1; then
+              php -l "$file"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done < <(find . -name "*.php" -not -path "./vendor/*" -not -path "./node_modules/*")
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "::error::PHP lint found $ERRORS error(s)"
+            exit 1
+          fi
+
+      - name: Build ZIP
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          SLUG="${{ env.PLUGIN_SLUG }}"
+          ZIP_NAME="${SLUG}-${VERSION}.zip"
+          BUILD_DIR="/tmp/build/${SLUG}"
+          RELEASE_DIR="/tmp/release"
+          rm -rf "$BUILD_DIR" "$RELEASE_DIR"
+          mkdir -p "$BUILD_DIR" "$RELEASE_DIR"
+          rsync -a \
+            --exclude=".git" \
+            --exclude=".github" \
+            --exclude=".forgejo" \
+            --exclude=".gitignore" \
+            --exclude=".gitattributes" \
+            --exclude=".editorconfig" \
+            --exclude=".env*" \
+            --exclude=".agent" \
+            --exclude=".vscode" \
+            --exclude="node_modules" \
+            --exclude="vendor" \
+            --exclude="tests" \
+            --exclude="docs" \
+            --exclude="examples" \
+            --exclude="backups" \
+            --exclude="phpunit.xml*" \
+            --exclude="phpcs.xml*" \
+            --exclude="phpstan.neon*" \
+            --exclude="composer.json" \
+            --exclude="composer.lock" \
+            --exclude="package.json" \
+            --exclude="package-lock.json" \
+            --exclude="*.md" \
+            --exclude="LICENSE" \
+            ./ "$BUILD_DIR/"
+          ( cd /tmp/build && zip -qr "${RELEASE_DIR}/${ZIP_NAME}" "${SLUG}/" )
+          echo "zip_path=${RELEASE_DIR}/${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "release_dir=${RELEASE_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Calculate SHA-256
+        id: checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP_PATH="${{ steps.build.outputs.zip_path }}"
+          ZIP_NAME="${{ steps.build.outputs.zip_name }}"
+          RELEASE_DIR="${{ steps.build.outputs.release_dir }}"
+          SHA256=$(sha256sum "$ZIP_PATH" | cut -d" " -f1)
+          echo "$SHA256  $ZIP_NAME" > "${RELEASE_DIR}/${ZIP_NAME}.sha256"
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Create or Update Release and Upload Assets
+        shell: bash
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          AUTH_TOKEN="${RELEASE_TOKEN:-${GITHUB_TOKEN:-}}"
+          if [ -z "$AUTH_TOKEN" ]; then
+            echo "::error::Missing auth token: set RELEASE_TOKEN or use default GITHUB_TOKEN"
+            exit 1
+          fi
+          TAG="${{ steps.version.outputs.tag }}"
+          SLUG="${{ env.PLUGIN_SLUG }}"
+          RELEASE_DIR="${{ steps.build.outputs.release_dir }}"
+          ZIP_NAME="${{ steps.build.outputs.zip_name }}"
+          SHA256="${{ steps.checksum.outputs.sha256 }}"
+          API_URL="${GITHUB_SERVER_URL%/}/api/v1/repos/${GITHUB_REPOSITORY}"
+          AUTH_HEADER="Authorization: token ${AUTH_TOKEN}"
+          {
+            echo "## ${SLUG} ${TAG}"
+            echo
+            if [ -s /tmp/changelog.md ]; then
+              echo "### What's Changed"
+              echo
+              cat /tmp/changelog.md
+              echo
+            fi
+            echo "### Checksums"
+            echo
+            echo "| File | SHA-256 |"
+            echo "|------|---------|"
+            echo "| ${ZIP_NAME} | ${SHA256} |"
+          } > /tmp/release-notes.md
+          RELEASE_NOTES=$(cat /tmp/release-notes.md)
+          STATUS=$(curl -sS -o /tmp/release.json -w "%{http_code}" -H "$AUTH_HEADER" "${API_URL}/releases/tags/${TAG}")
+          if [ "$STATUS" = "200" ]; then
+            RELEASE_ID=$(jq -r '.id' /tmp/release.json)
+            curl -sS -f -X PATCH -H "$AUTH_HEADER" -H "Content-Type: application/json" \
+              -d "$(jq -n --arg name "$TAG" --arg body "$RELEASE_NOTES" '{name: $name, body: $body, draft: false, prerelease: false}')" \
+              "${API_URL}/releases/${RELEASE_ID}" > /tmp/release.json
+          elif [ "$STATUS" = "404" ]; then
+            curl -sS -f -X POST -H "$AUTH_HEADER" -H "Content-Type: application/json" \
+              -d "$(jq -n --arg tag "$TAG" --arg name "$TAG" --arg body "$RELEASE_NOTES" '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: false}')" \
+              "${API_URL}/releases" > /tmp/release.json
+          else
+            echo "::error::Failed to query release HTTP ${STATUS}"
+            cat /tmp/release.json
+            exit 1
+          fi
+          RELEASE_ID=$(jq -r '.id' /tmp/release.json)
+          for FILE in "${RELEASE_DIR}"/*; do
+            FILENAME=$(basename "$FILE")
+            EXISTING_ASSET_ID=$(jq -r --arg n "$FILENAME" '.assets[]? | select(.name == $n) | .id' /tmp/release.json | head -1)
+            if [ -n "$EXISTING_ASSET_ID" ] && [ "$EXISTING_ASSET_ID" != "null" ]; then
+              curl -sS -f -X DELETE -H "$AUTH_HEADER" "${API_URL}/releases/${RELEASE_ID}/assets/${EXISTING_ASSET_ID}" > /dev/null
+            fi
+            ENCODED_NAME=$(printf "%s" "$FILENAME" | jq -sRr @uri)
+            curl -sS -f --retry 3 --retry-delay 2 --retry-all-errors \
+              -X POST -H "$AUTH_HEADER" -F "attachment=@${FILE}" \
+              "${API_URL}/releases/${RELEASE_ID}/assets?name=${ENCODED_NAME}" > /dev/null
+          done
+
+      - name: Verify update API metadata
+        if: ${{ secrets.UPDATE_API_BASE != '' }}
+        shell: bash
+        env:
+          UPDATE_API_BASE: ${{ secrets.UPDATE_API_BASE }}
+          VERIFY_FROM_VERSION: ${{ secrets.VERIFY_FROM_VERSION }}
+        run: |
+          set -euo pipefail
+          API_BASE="${UPDATE_API_BASE%/}"
+          FROM_VERSION="${VERIFY_FROM_VERSION:-0.0.0}"
+          SLUG="${{ env.PLUGIN_SLUG }}"
+          MAIN_FILE="${{ steps.detect.outputs.main_file }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          PLUGIN_FILE="${SLUG}/${MAIN_FILE}"
+          REQUEST_JSON=$(jq -cn --arg plugin_file "$PLUGIN_FILE" --arg from "$FROM_VERSION" '{plugins: {($plugin_file): {Version: $from}}}')
+          for attempt in $(seq 1 36); do
+            curl -sS -f -X POST -H "Content-Type: application/json" --data "$REQUEST_JSON" "${API_BASE}/api/v1/update-check" > /tmp/update-check.json
+            API_VERSION=$(jq -r --arg plugin_file "$PLUGIN_FILE" '.plugins[$plugin_file].version // empty' /tmp/update-check.json)
+            API_PACKAGE=$(jq -r --arg plugin_file "$PLUGIN_FILE" '.plugins[$plugin_file].package // empty' /tmp/update-check.json)
+            if [[ "$API_VERSION" == "$VERSION" && "$API_PACKAGE" == *"/releases/download/${TAG}/"* ]]; then
+              break
+            fi
+            if [ "$attempt" = "36" ]; then
+              echo "::error::update-check verification timeout"
+              cat /tmp/update-check.json
+              exit 1
+            fi
+            sleep 10
+          done
+          for attempt in $(seq 1 36); do
+            curl -sS -f "${API_BASE}/api/v1/plugins/${SLUG}/info" > /tmp/plugin-info.json
+            INFO_VERSION=$(jq -r '.version // empty' /tmp/plugin-info.json)
+            INFO_PACKAGE=$(jq -r '.download_link // empty' /tmp/plugin-info.json)
+            if [[ "$INFO_VERSION" == "$VERSION" && "$INFO_PACKAGE" == *"/releases/download/${TAG}/"* ]]; then
+              break
+            fi
+            if [ "$attempt" = "36" ]; then
+              echo "::error::plugin-info verification timeout"
+              cat /tmp/plugin-info.json
+              exit 1
+            fi
+            sleep 10
+          done

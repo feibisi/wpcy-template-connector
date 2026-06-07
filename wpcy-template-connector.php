@@ -3,17 +3,23 @@
  * Plugin Name: WPCY Template Connector
  * Plugin URI: https://wpcy.net
  * Description: Connects Elementor template library to templates.wpcy.net — replaces my.elementor.com API calls with local template repository.
- * Version: 1.0.2
+ * Version: 1.0.3
  * Author: WPCY
  * Requires Plugins: elementor
  * Text Domain: wpcy-template-connector
+ * Update URI: https://updates.wenpai.net
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-define('WPCY_TEMPLATE_CONNECTOR_VERSION', '1.0.2');
+define('WPCY_TEMPLATE_CONNECTOR_VERSION', '1.0.3');
+
+if (is_admin()) {
+    require_once __DIR__ . '/includes/class-wenpai-updater.php';
+    new WenPai_Updater(plugin_basename(__FILE__), WPCY_TEMPLATE_CONNECTOR_VERSION);
+}
 
 class WPCY_Template_Connector {
 
@@ -261,7 +267,7 @@ class WPCY_Template_Connector {
         add_submenu_page(
             $parent_slug,
             __('WPCY Template Connector', 'wpcy-template-connector'),
-            __('WPCY Templates', 'wpcy-template-connector'),
+            __('Connector', 'wpcy-template-connector'),
             'manage_options',
             'wpcy-template-connector',
             [$this, 'render_settings_page'],

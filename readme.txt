@@ -4,7 +4,7 @@ Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
 Requires Plugins: elementor
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPL-2.0+
 
 Connects Elementor template library to templates.wpcy.net, replacing my.elementor.com API calls.
@@ -24,9 +24,12 @@ Intercepts three template API surfaces and forwards them to native-compatible WP
 2. Activate from Plugins screen
 3. Elementor template library now serves from templates.wpcy.net
 
-Diagnostics and cache controls are available from Elementor → WPCY Templates.
+Diagnostics and cache controls are available from Elementor → Connector.
 
 == Changelog ==
+
+= 1.0.3 =
+* Add WenPai updater integration via Update URI https://updates.wenpai.net.
 
 = 1.0.2 =
 * Add Elementor submenu settings page with endpoint diagnostics and cache clearing.
