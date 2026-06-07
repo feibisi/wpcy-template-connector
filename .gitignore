@@ -1,0 +1,6 @@
+.DS_Store
+._*
+*.zip
+*.tar.gz
+node_modules/
+vendor/
