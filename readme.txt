@@ -5,7 +5,7 @@ Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
 Requires Plugins: elementor
-Stable tag: 1.0.4
+Stable tag: 1.0.5
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -46,6 +46,10 @@ It uses https://templates.wpcy.net for template metadata and template content, w
 The plugin declares Update URI: https://updates.wenpai.net and bundles the WenPai updater so WordPress can receive packages from the FeiCode/WenPai update channel.
 
 == Changelog ==
+
+= 1.0.5 =
+* Fix a fatal error ("Cannot declare class WenPai_Updater, because the name is already in use") when this plugin is installed alongside other WenPai plugins such as WPBridge.
+* Rename the bundled updater class to WPCY_Template_Connector_Updater so it no longer occupies a shared global class name.
 
 = 1.0.4 =
 * Complete plugin metadata: author, author URI, WordPress/PHP requirements, license, tested version, and readme details.

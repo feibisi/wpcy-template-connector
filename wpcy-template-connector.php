@@ -3,7 +3,7 @@
  * Plugin Name: WPCY Template Connector
  * Plugin URI: https://wpcy.com
  * Description: Connects Elementor's remote template library to templates.wpcy.net and routes template imports through the WPCY template repository.
- * Version: 1.0.4
+ * Version: 1.0.5
  * Author: WPCY.COM
  * Author URI: https://wpcy.com
  * Requires at least: 6.0
@@ -19,11 +19,11 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('WPCY_TEMPLATE_CONNECTOR_VERSION', '1.0.4');
+define('WPCY_TEMPLATE_CONNECTOR_VERSION', '1.0.5');
 
 if (is_admin()) {
     require_once __DIR__ . '/includes/class-wenpai-updater.php';
-    new WenPai_Updater(plugin_basename(__FILE__), WPCY_TEMPLATE_CONNECTOR_VERSION);
+    new WPCY_Template_Connector_Updater(plugin_basename(__FILE__), WPCY_TEMPLATE_CONNECTOR_VERSION);
 }
 
 class WPCY_Template_Connector {
