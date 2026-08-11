@@ -1,0 +1,73 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: wpcy-template-connector 1.0.5\n"
+"Language: zh_CN\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "WPCY Template Connector"
+msgstr "WPCY 模板连接器"
+
+msgid "Connector"
+msgstr "连接器"
+
+msgid "You do not have permission to access this page."
+msgstr "您无权访问此页面。"
+
+msgid "Elementor template library requests are routed to templates.wpcy.net."
+msgstr "Elementor 模板库请求已路由至 templates.wpcy.net。"
+
+msgid "Elementor library cache cleared."
+msgstr "Elementor 模板库缓存已清除。"
+
+msgid "Plugin version"
+msgstr "插件版本"
+
+msgid "API base"
+msgstr "API 基础地址"
+
+msgid "HTTP interception"
+msgstr "HTTP 拦截"
+
+msgid "Enabled for my.elementor.com and Elementor Cloud Library endpoints."
+msgstr "已对 my.elementor.com 和 Elementor 云模板库端点启用。"
+
+msgid "Elementor Connect mock"
+msgstr "Elementor Connect 模拟"
+
+msgid "Enabled for template import requests."
+msgstr "已对模板导入请求启用。"
+
+msgid "Run diagnostics"
+msgstr "运行诊断"
+
+msgid "Clear Elementor library cache"
+msgstr "清除 Elementor 模板库缓存"
+
+msgid "Diagnostics"
+msgstr "诊断"
+
+msgid "Check"
+msgstr "检查"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Details"
+msgstr "详情"
+
+msgid "OK"
+msgstr "正常"
+
+msgid "Error"
+msgstr "错误"
+
+msgid "You do not have permission to clear this cache."
+msgstr "您无权清除此缓存。"
+
+msgid ""
+"WPCY Template Connector: Elementor template library routed to "
+"templates.wpcy.net."
+msgstr "WPCY 模板连接器：Elementor 模板库已路由至 templates.wpcy.net。"

@@ -12,6 +12,7 @@
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: wpcy-template-connector
+ * Domain Path: /languages
  * Update URI: https://updates.wenpai.net
  */
 
@@ -20,6 +21,10 @@ if (!defined('ABSPATH')) {
 }
 
 define('WPCY_TEMPLATE_CONNECTOR_VERSION', '1.0.5');
+
+add_action('init', static function (): void {
+    load_plugin_textdomain('wpcy-template-connector', false, dirname(plugin_basename(__FILE__)) . '/languages');
+});
 
 if (is_admin()) {
     require_once __DIR__ . '/includes/class-wenpai-updater.php';
